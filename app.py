@@ -14,7 +14,7 @@ st.markdown("""
             color: #6C63FF;
         }
         .chat-bubble-user {
-            background-color: #E3E3FF;
+            background-color: #6A63FF;
             padding: 12px;
             border-radius: 12px;
             margin-bottom: 8px;
@@ -22,7 +22,7 @@ st.markdown("""
             float: right;
         }
         .chat-bubble-bot {
-            background-color: #F1F1F1;
+            background-color: #6A63FF;
             padding: 12px;
             border-radius: 12px;
             margin-bottom: 8px;
@@ -88,5 +88,6 @@ if st.button("Send"):
         st.session_state.messages.append({"role": "bot", "content": bot_response})
 
         st.rerun()
+
 
 
