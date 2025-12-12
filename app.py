@@ -58,7 +58,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # ------------------ UI TITLE ------------------
-st.markdown('<div class="title">💜 Chhavi’s Intelligent AI Assistant 💬</div>', unsafe_allow_html=True)
+st.markdown('<div class="title">💜 Intelligent AI Assistant 💬</div>', unsafe_allow_html=True)
 st.write("")
 
 # ------------------ CHAT DISPLAY ------------------
@@ -88,6 +88,7 @@ if st.button("Send"):
         st.session_state.messages.append({"role": "bot", "content": bot_response})
 
         st.rerun()
+
 
 
 
