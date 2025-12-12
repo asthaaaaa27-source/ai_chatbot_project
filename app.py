@@ -1,100 +1,90 @@
 import streamlit as st
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-import torch
+import requests
 
-# ---------------------------
-# 1. PAGE CONFIGURATION
-# ---------------------------
-st.set_page_config(page_title="AI Emotional Chatbot", page_icon="🤖")
+# ------------------ PAGE SETTINGS ------------------
+st.set_page_config(page_title="Chhavi's AI Chatbot", page_icon="🤖", layout="wide")
 
-st.title("🤖 AI Emotional Chatbot – Mini Conversational Assistant")
-st.write(
-    "This chatbot uses Natural Language Processing and Emotion Detection "
-    "to provide supportive and intelligent responses."
-)
+# Custom CSS for better UI
+st.markdown("""
+    <style>
+        .title {
+            font-size: 40px;
+            text-align: center;
+            font-weight: bold;
+            color: #6C63FF;
+        }
+        .chat-bubble-user {
+            background-color: #E3E3FF;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            max-width: 70%;
+            float: right;
+        }
+        .chat-bubble-bot {
+            background-color: #F1F1F1;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            max-width: 70%;
+            float: left;
+        }
+        .chat-box {
+            height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            border: 2px solid #DDD;
+            border-radius: 10px;
+            background-color: white;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
-# ---------------------------
-# 2. LOAD MODELS
-# ---------------------------
+# ------------------ HUGGING FACE API SETTINGS ------------------
+API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
+API_KEY = "PUT_YOUR_API_KEY_HERE"
+headers = {"Authorization": f"Bearer {API_KEY}"}
 
-@st.cache_resource
-def load_emotion_model():
-    return pipeline(
-        "text-classification",
-        model="joeddav/distilbert-base-uncased-go-emotions-student",
-        return_all_scores=False,
-    )
+def generate_response(prompt):
+    payload = {"inputs": prompt}
+    response = requests.post(API_URL, headers=headers, json=payload)
+    try:
+        return response.json()[0]["generated_text"]
+    except:
+        return "Sorry, I couldn't generate a response."
 
-@st.cache_resource
-def load_chatbot_model():
-    tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-medium")
-    model = AutoModelForCausalLM.from_pretrained("microsoft/DialoGPT-medium")
-    return tokenizer, model
+# ------------------ SESSION STATE FOR CHAT HISTORY ------------------
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-emotion_classifier = load_emotion_model()
-tokenizer, model = load_chatbot_model()
+# ------------------ UI TITLE ------------------
+st.markdown('<div class="title">💜 Chhavi’s Intelligent AI Assistant 💬</div>', unsafe_allow_html=True)
+st.write("")
 
-# ---------------------------
-# 3. CHAT HISTORY
-# ---------------------------
+# ------------------ CHAT DISPLAY ------------------
+st.write("### Chat History")
+chat_container = st.container()
+with chat_container:
+    st.markdown('<div class="chat-box" id="chat-box">', unsafe_allow_html=True)
 
-if "chat_history_ids" in st.session_state:
-    chat_history_ids = st.session_state["chat_history_ids"]
-else:
-    chat_history_ids = None
+    for msg in st.session_state.messages:
+        if msg["role"] == "user":
+            st.markdown(f"<div class='chat-bubble-user'>{msg['content']}</div><br>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div class='chat-bubble-bot'>{msg['content']}</div><br>", unsafe_allow_html=True)
 
-# ---------------------------
-# 4. CHAT INPUT BOX
-# ---------------------------
+    st.markdown("</div>", unsafe_allow_html=True)
 
-user_input = st.text_input("Type your message here…", "")
+# ------------------ INPUT AREA ------------------
+user_input = st.text_input("Type your message here, Chhavi:")
 
-if st.button("Send") and user_input.strip() != "":
-    # Detect emotion
-    emotion = emotion_classifier(user_input)[0]["label"]
+if st.button("Send"):
+    if user_input.strip() != "":
+        # Add user message
+        st.session_state.messages.append({"role": "user", "content": user_input})
 
-    st.markdown(f"**Detected Emotion:** `{emotion}`")
+        # Generate bot reply
+        bot_response = generate_response(user_input)
+        st.session_state.messages.append({"role": "bot", "content": bot_response})
 
-    # System guidance fused with user message
-    system_note = (
-        f"(The user seems to feel {emotion}. "
-        "Respond with clarity, empathy, and a feminist supportive tone.)\n"
-    )
-
-    full_input = system_note + "User: " + user_input
-
-    # Prepare bot input
-    input_ids = tokenizer.encode(full_input + tokenizer.eos_token, return_tensors="pt")
-
-    if chat_history_ids is not None:
-        bot_input_ids = torch.cat([chat_history_ids, input_ids], dim=-1)
-    else:
-        bot_input_ids = input_ids
-
-    # Generate reply
-    chat_history_ids = model.generate(
-        bot_input_ids,
-        max_length=150,
-        pad_token_id=tokenizer.eos_token_id,
-        do_sample=True,
-        top_p=0.92,
-        top_k=50,
-    )
-
-    # Save state
-    st.session_state["chat_history_ids"] = chat_history_ids
-
-    # Decode response
-    bot_reply = tokenizer.decode(
-        chat_history_ids[:, bot_input_ids.shape[-1]:][0],
-        skip_special_tokens=True,
-    )
-
-    # Display
-    st.markdown(f"### 🤖 Chatbot:\n{bot_reply}")
-
-# ---------------------------
-# 5. FOOTER
-# ---------------------------
-st.write("---")
-st.write("Made with ❤️ by Chhavi (Class 12)")
+        st.experimental_rerun()
